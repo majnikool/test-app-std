@@ -1,6 +1,37 @@
 ---
+# Installation configuration
+install_method: source  # 'package' or 'source'
+package_version: v0.1.28
+git_repo: https://github.com/majnikool/test-app.git
+git_branch: main
+git_version: HEAD
+
+# Database configuration
 db_name: mydatabase
 db_user: myuser
 db_password: mypassword
 db_port: 5432
+
+# Application configuration
 app_port: 8000
+app_user: ec2-user
+app_group: ec2-user
+app_home: /opt/fastapi-app
+app_venv: /opt/fastapi-app/venv
+log_level: INFO
+
+# Service configuration
+service_name: fastapi
+service_restart_sec: 10
+service_workers: 4
+service_host: 0.0.0.0
+service_reload: false  # Enable for development
+service_log_level: info
+service_access_log: true
+service_backlog: 2048
+service_timeout_keep_alive: 5
+
+# Resource limits
+memory_limit: 1G
+open_files_limit: 65535
+max_processes: 65535

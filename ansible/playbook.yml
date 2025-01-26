@@ -1,12 +1,12 @@
 ---
 - name: Configure PostgreSQL VM
   hosts: postgres
-  become: yes
+  become: true
   roles:
     - postgres
 
 - name: Configure FastAPI VM
   hosts: fastapi
-  become: yes
+  become: true
   roles:
     - fastapi

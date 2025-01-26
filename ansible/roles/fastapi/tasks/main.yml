@@ -1,86 +1,176 @@
 # roles/fastapi/tasks/main.yml
 ---
+# Common package installation regardless of installation method
 - name: Install required packages
-  become: yes
+  become: true
   yum:
     name: 
       - python3
       - python3-pip
-      - git
       - python3-devel
       - postgresql-devel
       - rsync
     state: present
 
-- name: Create application directory
-  become: yes
-  file:
-    path: /opt/fastapi-app
-    state: directory
-    owner: ec2-user
-    group: ec2-user
-    mode: '0755'
+# Package-based installation tasks
+- name: Install from package
+  when: install_method == "package"
+  block:
+    - name: Install RPM package
+      become: true
+      yum:
+        name: "https://github.com/majnikool/test-app/releases/download/{{ package_version }}/fastapi-app-{{ package_version | replace('v', '') }}.rpm"
+        state: present
+        disable_gpg_check: yes
 
-- name: Synchronize application files
-  synchronize:
-    src: "{{ playbook_dir }}/../my_fastapi_app/"
-    dest: /opt/fastapi-app/
-    rsync_opts:
-      - "--exclude=venv"
-      - "--exclude=__pycache__"
-      - "--exclude=*.pyc"
-      - "--exclude=.pytest_cache"
-  delegate_to: localhost
-  become: no
+    # Ensure proper permissions for package installation
+    - name: Ensure app directory exists with correct permissions
+      become: true
+      file:
+        path: "{{ app_home }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: '0755'
+        recurse: yes
 
-- name: Fix application directory permissions
-  become: yes
-  file:
-    path: /opt/fastapi-app
-    owner: ec2-user
-    group: ec2-user
-    recurse: yes
-    mode: '0755'
+    # Setup virtualenv for package installation
+    - name: Remove existing venv if exists for package
+      become: true
+      file:
+        path: "{{ app_venv }}"
+        state: absent
 
-- name: Create Python virtual environment
-  become: yes
-  become_user: ec2-user
-  pip:
-    requirements: /opt/fastapi-app/requirements.txt
-    virtualenv: /opt/fastapi-app/venv
-    virtualenv_command: python3 -m venv
+    - name: Create fresh virtual environment for package
+      become: true
+      become_user: "{{ app_user }}"
+      command: python3 -m venv "{{ app_venv }}"
 
+    - name: Install base packages in venv for package
+      become: true
+      become_user: "{{ app_user }}"
+      command: "{{ app_venv }}/bin/pip install --upgrade pip setuptools wheel"
+
+    - name: Install requirements for package
+      become: true
+      become_user: "{{ app_user }}"
+      command: "{{ app_venv }}/bin/pip install -r {{ app_home }}/requirements.txt"
+      args:
+        chdir: "{{ app_home }}"
+
+# Source-based installation tasks
+- name: Install from source
+  when: install_method == "source"
+  block:
+    - name: Install git
+      become: true
+      yum:
+        name: git
+        state: present
+
+    - name: Check if existing directory is a Git repo
+      stat:
+        path: "{{ app_home }}/.git"
+      register: gitcheck
+
+    - name: Remove existing directory if not a Git repo
+      file:
+        path: "{{ app_home }}"
+        state: absent
+      when: gitcheck.stat.exists == false
+
+    - name: Create application directory
+      become: true
+      file:
+        path: "{{ app_home }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: '0755'
+
+    - name: Clone application repository
+      git:
+        repo: "{{ git_repo }}"
+        dest: "{{ app_home }}"
+        version: "{{ git_version }}"
+        force: yes
+
+    - name: Install build dependencies
+      become: true
+      pip:
+        name: 
+          - wheel
+          - setuptools
+          - build
+        state: present
+
+    - name: Create fresh virtual environment
+      become: true
+      become_user: "{{ app_user }}"
+      command: python3 -m venv "{{ app_venv }}"
+
+    - name: Install base packages in venv
+      become: true
+      become_user: "{{ app_user }}"
+      command: "{{ app_venv }}/bin/pip install --upgrade pip setuptools wheel"
+
+    - name: Install requirements from source directory
+      become: true
+      become_user: "{{ app_user }}"
+      command: "{{ app_venv }}/bin/pip install -r {{ app_home }}/my_fastapi_app/requirements.txt"
+      args:
+        chdir: "{{ app_home }}"
+
+    - name: Ensure proper ownership for pip install
+      become: true
+      file:
+        path: "{{ app_home }}/my_fastapi_app"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: '0755'
+        recurse: yes
+
+    - name: Install the package in development mode
+      become: true
+      become_user: "{{ app_user }}"
+      command: "{{ app_venv }}/bin/pip install -e {{ app_home }}/my_fastapi_app"
+      args:
+        chdir: "{{ app_home }}"
+
+# Wait for database
 - name: Wait for PostgreSQL connection
   wait_for:
     host: "{{ hostvars['postgres']['ansible_host'] }}"
     port: "{{ db_port }}"
     timeout: 60
-  delegate_to: "{{ groups['fastapi'][0] }}"  # Use the FastAPI host as the connection point
+  delegate_to: "{{ groups['fastapi'][0] }}"
 
+# Configure environment
 - name: Create .env file
-  become: yes
+  become: true
   template:
-    src: env.j2
-    dest: /opt/fastapi-app/.env
-    owner: ec2-user
-    group: ec2-user
+    src: "env.j2"
+    dest: "{{ app_home }}/.env"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
     mode: '0600'
 
+# Setup service
 - name: Deploy FastAPI systemd service
-  become: yes
+  become: true
   template:
-    src: fastapi.service.j2
+    src: "fastapi.service.j2"
     dest: /etc/systemd/system/fastapi.service
     mode: '0644'
-  notify: restart fastapi
 
 - name: Reload systemd daemon
-  become: yes
+  become: true
   systemd:
     daemon_reload: yes
 
 - name: Start and enable FastAPI service
-  become: yes
+  become: true
   systemd:
     name: fastapi
     enabled: yes
@@ -88,38 +178,73 @@
 
 - name: Wait for FastAPI to be ready
   wait_for:
+    host: "{{ ansible_host }}"
     port: "{{ app_port }}"
     timeout: 30
 
-- name: Run pytest
-  become: yes
-  become_user: ec2-user
-  command: /opt/fastapi-app/venv/bin/pytest -v
-  args:
-    chdir: /opt/fastapi-app
-  environment:
-    PATH: "/opt/fastapi-app/venv/bin:{{ ansible_env.PATH }}"
-    PYTHONPATH: "/opt/fastapi-app"
-    db_host: "{{ hostvars['postgres']['ansible_host'] }}"
-    db_port: "{{ db_port }}"
-    db_name: "{{ db_name }}"
-    db_user: "{{ db_user }}"
-    db_password: "{{ db_password }}"
-    log_level: "INFO"
-  register: pytest_result
-  ignore_errors: yes  # Continue playbook even if tests fail
+# Run tests
+- name: Run tests for package installation
+  when: install_method == "package"
+  block:
+    - name: Run pytest
+      become: true
+      become_user: "{{ app_user }}"
+      command: "{{ app_venv }}/bin/pytest -v tests/"
+      args:
+        chdir: "{{ app_home }}"
+      environment:
+        PATH: "{{ app_venv }}/bin:{{ ansible_env.PATH }}"
+        PYTHONPATH: "{{ app_home }}"
+        db_host: "{{ hostvars['postgres']['ansible_host'] }}"
+        db_port: "{{ db_port }}"
+        db_name: "{{ db_name }}"
+        db_user: "{{ db_user }}"
+        db_password: "{{ db_password }}"
+        log_level: "{{ log_level }}"
+      register: pytest_result
+      ignore_errors: true
 
-- name: Show pytest results
-  debug:
-    var: pytest_result.stdout_lines
+    - name: Show pytest results
+      debug:
+        var: pytest_result.stdout_lines
 
-- name: Fail if tests failed
-  fail:
-    msg: "Pytest failed with return code {{ pytest_result.rc }}"
-  when: pytest_result.rc != 0
+    - name: Fail if tests failed
+      fail:
+        msg: "Pytest failed with return code {{ pytest_result.rc }}"
+      when: pytest_result.rc != 0
+
+- name: Run tests for source installation
+  when: install_method == "source"
+  block:
+    - name: Run pytest
+      become: true
+      become_user: "{{ app_user }}"
+      command: "{{ app_venv }}/bin/pytest -v tests/"
+      args:
+        chdir: "{{ app_home }}/my_fastapi_app"
+      environment:
+        PATH: "{{ app_venv }}/bin:{{ ansible_env.PATH }}"
+        PYTHONPATH: "{{ app_home }}/my_fastapi_app"
+        db_host: "{{ hostvars['postgres']['ansible_host'] }}"
+        db_port: "{{ db_port }}"
+        db_name: "{{ db_name }}"
+        db_user: "{{ db_user }}"
+        db_password: "{{ db_password }}"
+        log_level: "{{ log_level }}"
+      register: pytest_result
+      ignore_errors: true
+
+    - name: Show pytest results
+      debug:
+        var: pytest_result.stdout_lines
+
+    - name: Fail if tests failed
+      fail:
+        msg: "Pytest failed with return code {{ pytest_result.rc }}"
+      when: pytest_result.rc != 0
 
 - name: Check FastAPI service status
-  become: yes
+  become: true
   systemd:
     name: fastapi
     state: started

@@ -1,6 +1,0 @@
----
-- name: restart fastapi
-  become: yes
-  systemd:
-    name: fastapi
-    state: restarted

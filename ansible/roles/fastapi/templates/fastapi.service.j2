@@ -1,17 +1,32 @@
-# roles/fastapi/templates/fastapi.service.j2
 [Unit]
 Description=FastAPI Application
 After=network.target
 Wants=postgresql-15.service
 
 [Service]
-User=ec2-user
-WorkingDirectory=/opt/fastapi-app
-Environment=PATH=/opt/fastapi-app/venv/bin:$PATH
-ExecStart=/opt/fastapi-app/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port {{ app_port }}
+User={{ app_user }}
+Group={{ app_group }}
+WorkingDirectory={{ app_home }}
+Environment=PATH={{ app_venv }}/bin:$PATH
+ExecStart={{ app_venv }}/bin/uvicorn app.main:app \
+    --host {{ service_host }} \
+    --port {{ app_port }} \
+    --workers {{ service_workers }} \
+    --log-level {{ service_log_level }} \
+    {% if service_reload %}--reload{% endif %} \
+    {% if service_access_log %}--access-log{% endif %} \
+    --backlog {{ service_backlog }} \
+    --timeout-keep-alive {{ service_timeout_keep_alive }}
+
 Restart=always
-RestartSec=10
+RestartSec={{ service_restart_sec }}
 StartLimitInterval=0
+
+# Resource limits
+LimitMEMLOCK=infinity
+LimitNOFILE={{ open_files_limit }}
+LimitNPROC={{ max_processes }}
+MemoryLimit={{ memory_limit }}
 
 [Install]
 WantedBy=multi-user.target

@@ -1,0 +1,70 @@
+---
+- name: Verify FastAPI installation
+  hosts: fastapi
+  gather_facts: yes
+  tasks:
+    - name: Check if service is installed
+      stat:
+        path: "{{ app_home }}"
+      register: app_dir
+
+    - name: Fail if service is not installed
+      fail:
+        msg: "Service directory not found"
+      when: not app_dir.stat.exists
+
+    - name: Get service status details
+      command: systemctl status fastapi
+      register: service_details
+      failed_when: false
+      changed_when: false
+
+    - name: Check if service is running
+      systemd:
+        name: fastapi
+      register: service_status
+
+    - name: Fail if service is not running
+      fail:
+        msg: "Service is not running"
+      when: not service_status.status.ActiveState == "active"
+
+    - name: Get FastAPI version with shell command
+      shell: "{{ app_venv }}/bin/pip freeze | grep -i fastapi"
+      register: fastapi_version
+      changed_when: false
+
+    - name: Verify FastAPI version
+      fail:
+        msg: "Incorrect FastAPI version installed. Expected 0.104.1, got {{ fastapi_version.stdout.split('==')[1] }}"
+      when: "'fastapi==0.104.1' not in fastapi_version.stdout"
+
+    - name: Check process
+      shell: "ps -ef | grep uvicorn | grep -v grep"
+      register: process_check
+      changed_when: false
+      failed_when: false
+
+    - name: Get network connections
+      shell: "netstat -tulpn | grep uvicorn"
+      become: yes
+      register: port_check
+      changed_when: false
+      failed_when: false
+
+    - name: Show process and port information
+      debug:
+        msg:
+          - "Process info: {{ process_check.stdout_lines }}"
+          - "Port info: {{ port_check.stdout_lines }}"
+
+    - name: Test API endpoint
+      uri:
+        url: "http://localhost:{{ app_port }}/items/"
+        method: GET
+        status_code: 200
+      register: api_response
+      retries: 3
+      delay: 5
+      until: api_response.status == 200
+      ignore_errors: yes
