@@ -1,0 +1,6 @@
+include README.md
+include VERSION
+include requirements.txt
+include packaging/*
+recursive-include app *
+recursive-include tests *

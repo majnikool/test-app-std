@@ -1,0 +1,29 @@
+[Unit]
+Description=FastAPI Application
+After=network.target
+Wants=postgresql-15.service
+
+[Service]
+User=ec2-user
+Group=ec2-user
+WorkingDirectory=/opt/fastapi-app
+Environment=PATH=/opt/fastapi-app/venv/bin:$PATH
+ExecStart=/opt/fastapi-app/venv/bin/uvicorn app.main:app \
+    --host 0.0.0.0 \
+    --port 8000 \
+    --workers 4 \
+    --log-level info \
+    --backlog 2048 \
+    --timeout-keep-alive 5
+
+Restart=always
+RestartSec=10
+StartLimitInterval=0
+
+LimitMEMLOCK=infinity
+LimitNOFILE=65535
+LimitNPROC=65535
+MemoryLimit=1G
+
+[Install]
+WantedBy=multi-user.target
