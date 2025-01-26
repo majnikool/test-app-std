@@ -11,7 +11,7 @@ Release:        1%{?dist}
 Summary:        FastAPI CRUD Application
 
 License:        MIT
-URL:            https://github.com/yourusername/fastapi-app
+URL:            https://github.com/majnikool/test-app-std
 Source0:        %{name}-%{version}.tar.gz
 
 %description
