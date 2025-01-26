@@ -1,0 +1,4 @@
+# roles/postgres/templates/postgresql.conf.j2
+listen_addresses = '*'
+port = {{ db_port }}
+max_connections = 100

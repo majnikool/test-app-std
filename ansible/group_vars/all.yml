@@ -1,0 +1,6 @@
+---
+db_name: mydatabase
+db_user: myuser
+db_password: mypassword
+db_port: 5432
+app_port: 8000

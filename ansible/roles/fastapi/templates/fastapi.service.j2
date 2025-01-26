@@ -1,0 +1,17 @@
+# roles/fastapi/templates/fastapi.service.j2
+[Unit]
+Description=FastAPI Application
+After=network.target
+Wants=postgresql-15.service
+
+[Service]
+User=ec2-user
+WorkingDirectory=/opt/fastapi-app
+Environment=PATH=/opt/fastapi-app/venv/bin:$PATH
+ExecStart=/opt/fastapi-app/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port {{ app_port }}
+Restart=always
+RestartSec=10
+StartLimitInterval=0
+
+[Install]
+WantedBy=multi-user.target

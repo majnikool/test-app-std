@@ -1,0 +1,64 @@
+# roles/postgres/tasks/main.yml
+---
+- name: Update all packages
+  become: yes
+  dnf:
+    name: '*'
+    state: latest
+
+- name: Install PostgreSQL 15
+  become: yes
+  dnf:
+    name: 
+      - postgresql15-server
+      - postgresql15-contrib
+      - python3-psycopg2
+    state: present
+
+- name: Initialize PostgreSQL database
+  become: yes
+  command: /usr/bin/postgresql-setup --initdb
+  args:
+    creates: /var/lib/pgsql/data/postgresql.conf
+
+- name: Deploy custom PostgreSQL configuration
+  become: yes
+  template:
+    src: postgresql.conf.j2
+    dest: /var/lib/pgsql/data/postgresql.conf
+  notify: restart postgresql
+
+- name: Configure pg_hba.conf to allow remote connections
+  become: yes
+  template:
+    src: pg_hba.conf.j2
+    dest: /var/lib/pgsql/data/pg_hba.conf
+  notify: restart postgresql
+
+- name: Start and enable PostgreSQL service
+  become: yes
+  systemd:
+    name: postgresql
+    enabled: yes
+    state: started
+
+- name: Wait for PostgreSQL to be ready
+  wait_for:
+    port: "{{ db_port }}"
+    timeout: 30
+
+- name: Create application database user
+  become: yes
+  become_user: postgres
+  postgresql_user:
+    name: "{{ db_user }}"
+    password: "{{ db_password }}"
+    role_attr_flags: CREATEDB,LOGIN
+
+- name: Create application database
+  become: yes
+  become_user: postgres
+  postgresql_db:
+    name: "{{ db_name }}"
+    owner: "{{ db_user }}"
+    encoding: UTF8

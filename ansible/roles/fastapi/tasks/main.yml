@@ -1,0 +1,130 @@
+# roles/fastapi/tasks/main.yml
+---
+- name: Install required packages
+  become: yes
+  yum:
+    name: 
+      - python3
+      - python3-pip
+      - git
+      - python3-devel
+      - postgresql-devel
+      - rsync
+    state: present
+
+- name: Create application directory
+  become: yes
+  file:
+    path: /opt/fastapi-app
+    state: directory
+    owner: ec2-user
+    group: ec2-user
+    mode: '0755'
+
+- name: Synchronize application files
+  synchronize:
+    src: "{{ playbook_dir }}/../my_fastapi_app/"
+    dest: /opt/fastapi-app/
+    rsync_opts:
+      - "--exclude=venv"
+      - "--exclude=__pycache__"
+      - "--exclude=*.pyc"
+      - "--exclude=.pytest_cache"
+  delegate_to: localhost
+  become: no
+
+- name: Fix application directory permissions
+  become: yes
+  file:
+    path: /opt/fastapi-app
+    owner: ec2-user
+    group: ec2-user
+    recurse: yes
+    mode: '0755'
+
+- name: Create Python virtual environment
+  become: yes
+  become_user: ec2-user
+  pip:
+    requirements: /opt/fastapi-app/requirements.txt
+    virtualenv: /opt/fastapi-app/venv
+    virtualenv_command: python3 -m venv
+
+- name: Wait for PostgreSQL connection
+  wait_for:
+    host: "{{ hostvars['postgres']['ansible_host'] }}"
+    port: "{{ db_port }}"
+    timeout: 60
+  delegate_to: "{{ groups['fastapi'][0] }}"  # Use the FastAPI host as the connection point
+
+- name: Create .env file
+  become: yes
+  template:
+    src: env.j2
+    dest: /opt/fastapi-app/.env
+    owner: ec2-user
+    group: ec2-user
+    mode: '0600'
+
+- name: Deploy FastAPI systemd service
+  become: yes
+  template:
+    src: fastapi.service.j2
+    dest: /etc/systemd/system/fastapi.service
+    mode: '0644'
+  notify: restart fastapi
+
+- name: Reload systemd daemon
+  become: yes
+  systemd:
+    daemon_reload: yes
+
+- name: Start and enable FastAPI service
+  become: yes
+  systemd:
+    name: fastapi
+    enabled: yes
+    state: started
+
+- name: Wait for FastAPI to be ready
+  wait_for:
+    port: "{{ app_port }}"
+    timeout: 30
+
+- name: Run pytest
+  become: yes
+  become_user: ec2-user
+  command: /opt/fastapi-app/venv/bin/pytest -v
+  args:
+    chdir: /opt/fastapi-app
+  environment:
+    PATH: "/opt/fastapi-app/venv/bin:{{ ansible_env.PATH }}"
+    PYTHONPATH: "/opt/fastapi-app"
+    db_host: "{{ hostvars['postgres']['ansible_host'] }}"
+    db_port: "{{ db_port }}"
+    db_name: "{{ db_name }}"
+    db_user: "{{ db_user }}"
+    db_password: "{{ db_password }}"
+    log_level: "INFO"
+  register: pytest_result
+  ignore_errors: yes  # Continue playbook even if tests fail
+
+- name: Show pytest results
+  debug:
+    var: pytest_result.stdout_lines
+
+- name: Fail if tests failed
+  fail:
+    msg: "Pytest failed with return code {{ pytest_result.rc }}"
+  when: pytest_result.rc != 0
+
+- name: Check FastAPI service status
+  become: yes
+  systemd:
+    name: fastapi
+    state: started
+  register: service_status
+
+- name: Show service status
+  debug:
+    var: service_status
