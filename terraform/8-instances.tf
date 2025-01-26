@@ -9,7 +9,7 @@ resource "aws_instance" "fastapi_vm" {
 #!/bin/bash
 mkdir -p /home/ec2-user/.ssh
 chmod 700 /home/ec2-user/.ssh
-echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDCBOWPN1c6nknwqs9OMvUKa2NTWCB9lRkd4ZIWOmTBiqxLz4siEdZuPGsg2h2aKiiwXUO3i+/y9hNjzPZKTZEPEnCBZ+/prZgxxoYfkTmjswYbMcoAdLUTnTjlqUZhKmkQ1iN8MHfz+zQ7QzxrwboycVNZYpBUYXmX4EWVzzo4nucPP8VsPCaHlvtMvAMM7WSIpcBDIQ58mm7wxLQxJzNs5N6HodRUve1nga5tF5SEtPoyO/YFFVd08Mg4mHLPWXE3dQs/JbG3V6ZAqMKJEp1IVRNmGI2xZ5uCNfVAcAtumOcvGcK/pYCAU8YGAtvtIF57OpChs877ClKwvRLKGck3" >> /home/ec2-user/.ssh/authorized_keys
+echo "${aws_key_pair.my_key.public_key}" >> /home/ec2-user/.ssh/authorized_keys
 chmod 600 /home/ec2-user/.ssh/authorized_keys
 chown -R ec2-user:ec2-user /home/ec2-user/.ssh
 EOF
@@ -30,7 +30,7 @@ resource "aws_instance" "postgres_vm" {
 #!/bin/bash
 mkdir -p /home/ec2-user/.ssh
 chmod 700 /home/ec2-user/.ssh
-echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDCBOWPN1c6nknwqs9OMvUKa2NTWCB9lRkd4ZIWOmTBiqxLz4siEdZuPGsg2h2aKiiwXUO3i+/y9hNjzPZKTZEPEnCBZ+/prZgxxoYfkTmjswYbMcoAdLUTnTjlqUZhKmkQ1iN8MHfz+zQ7QzxrwboycVNZYpBUYXmX4EWVzzo4nucPP8VsPCaHlvtMvAMM7WSIpcBDIQ58mm7wxLQxJzNs5N6HodRUve1nga5tF5SEtPoyO/YFFVd08Mg4mHLPWXE3dQs/JbG3V6ZAqMKJEp1IVRNmGI2xZ5uCNfVAcAtumOcvGcK/pYCAU8YGAtvtIF57OpChs877ClKwvRLKGck3" >> /home/ec2-user/.ssh/authorized_keys
+echo "${aws_key_pair.my_key.public_key}" >> /home/ec2-user/.ssh/authorized_keys
 chmod 600 /home/ec2-user/.ssh/authorized_keys
 chown -R ec2-user:ec2-user /home/ec2-user/.ssh
 EOF

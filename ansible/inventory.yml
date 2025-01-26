@@ -1,14 +1,13 @@
-# inventory.yml
 all:
   children:
     fastapi:
       hosts:
         fastapi:
-          ansible_host: 18.219.181.141
+          ansible_host: "{{ public_vm_ip }}"
           ansible_user: ec2-user
     postgres:
       hosts:
         postgres:
-          ansible_host: 10.0.13.0
+          ansible_host: "{{ private_vm_ip }}"
           ansible_user: ec2-user
-          ansible_ssh_common_args: '-o ProxyCommand="ssh -W %h:%p -q ec2-user@18.219.181.141"'
+          ansible_ssh_common_args: '-o ProxyCommand="ssh -W %h:%p -q ec2-user@{{ public_vm_ip }}"'

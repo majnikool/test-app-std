@@ -1,10 +1,17 @@
 ---
 # Installation configuration
+
 install_method: package  # 'package' or 'source'
 package_version: v0.1.0
 git_repo: https://github.com/majnikool/test-app-std.git
 git_branch: main
 git_version: HEAD
+
+
+# IP Configuration
+public_vm_ip: 18.219.181.141
+private_vm_ip: 10.0.13.0
+
 
 # Database configuration
 db_name: mydatabase
