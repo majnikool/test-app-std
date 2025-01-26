@@ -2,6 +2,9 @@
 
 This is a FastAPI application that implements CRUD operations with PostgreSQL database integration.
 
+![Application Architecture](https://github.com/majnikool/test-app-std/blob/main/test-app.jpg?raw=true)
+
+
 ## Features
 - CRUD operations for items
 - PostgreSQL database integration
