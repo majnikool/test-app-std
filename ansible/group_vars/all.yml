@@ -1,6 +1,6 @@
 ---
 # Installation configuration
-install_method: source  # 'package' or 'source'
+install_method: package  # 'package' or 'source'
 package_version: v0.1.0
 git_repo: https://github.com/majnikool/test-app-std.git
 git_branch: main

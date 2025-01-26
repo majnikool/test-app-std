@@ -19,7 +19,7 @@
     - name: Install RPM package
       become: true
       yum:
-        name: "https://github.com/majnikool/test-app/releases/download/{{ package_version }}/fastapi-app-{{ package_version | replace('v', '') }}.rpm"
+        name: "{{ git_repo | regex_replace('\\.git$', '') }}/releases/download/{{ package_version }}/fastapi-app-{{ package_version | replace('v', '') }}.rpm"
         state: present
         disable_gpg_check: yes
 
