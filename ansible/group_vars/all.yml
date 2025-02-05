@@ -9,8 +9,8 @@ git_version: HEAD
 
 
 # IP Configuration
-public_vm_ip: 18.219.181.141
-private_vm_ip: 10.0.13.0
+public_vm_ip: 18.222.166.95
+private_vm_ip: 10.0.20.99
 
 
 # Database configuration

@@ -144,7 +144,7 @@
     host: "{{ hostvars['postgres']['ansible_host'] }}"
     port: "{{ db_port }}"
     timeout: 60
-  delegate_to: "{{ groups['fastapi'][0] }}"
+  delegate_to: fastapi
 
 # Configure environment
 - name: Create .env file
